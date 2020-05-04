@@ -9,6 +9,7 @@
 import UIKit
 
 class ViewController: UIViewController {
+    var timer: DispatchSourceTimer?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -25,7 +26,17 @@ class ViewController: UIViewController {
         //testAsyncTaskNestedInSameSerialQueue()
         
         //barrir()
-        concurrentPerformTask()
+        //concurrentPerformTask()
+//        dispatch_later(2) {
+//            print("dispatch_after 延迟执行任务====",Thread.current,Date())
+//        }
+        
+        //group()
+//        group2()
+        //group3()
+       // dispatchTimer()
+        dispatchTimer2()
+        
         
         //GCD两个异步线程执行 attributes参数的不同执行情况不同
         //qosConcurrentQueues()
@@ -45,6 +56,24 @@ class ViewController: UIViewController {
     //1.1创建一个DispatchQueue方法
     //let queue = DispatchQueue(label: "com.sys.nd")
     
+    
+    /// 挂起
+    /// - Parameter sender: <#sender description#>
+    @IBAction func suspendbtnClick(_ sender: UIButton) {
+        
+        suspendAndResume.suspendQueue()
+    }
+    
+    /// 唤醒
+    /// - Parameter sender: <#sender description#>
+    @IBAction func resumeBtnClick(_ sender: UIButton) {
+        suspendAndResume.resumeQueue()
+    }
+    //创建队列的挂起和唤醒类
+    private lazy var suspendAndResume = SuspendAndResum()
+    
+    
+    
 }
 extension ViewController {
     
@@ -55,7 +84,6 @@ extension ViewController {
         
         //获取全局并发队列
         let globleQueue = DispatchQueue.global()
-        
         
     }
 }
@@ -316,7 +344,9 @@ extension ViewController {
     }
 }
 
+// GCD其他服务
 extension ViewController {
+    //栅栏
     func barrir() -> Void {
         let queue = DispatchQueue(label: "queueBarrir", attributes: [.concurrent])
         /**
@@ -358,6 +388,7 @@ extension ViewController {
         }
     }
     
+    //迭代器
     func concurrentPerformTask() -> Void {
         //1.单独创建 iterations： 为迭代次数 可以修改
 //        DispatchQueue.concurrentPerform(iterations: 10) { (index) in
@@ -371,4 +402,124 @@ extension ViewController {
             }
         }
     }
+    
+    //延迟执行函数 ()
+    func dispatch_later(_ time: TimeInterval, block: @escaping ()-> ()) -> Void {
+        print("任务在\(time)秒后执行",Date())
+        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + time, execute: block)
+    }
+    
+    
+}
+
+// 任务组
+extension ViewController {
+    
+    func group() -> Void {
+        let queueGroup = DispatchGroup()
+    
+        let queue = DispatchQueue.global()
+        
+        queue.async(group: queueGroup, execute: DispatchWorkItem(block: {
+            print("任务1-----",Thread.current)
+        }))
+        
+        queue.async(group: queueGroup, execute: DispatchWorkItem(block: {
+            print("任务2-----",Thread.current)
+        }))
+        queue.async(group: queueGroup, execute: DispatchWorkItem(block: {
+            print("任务3-----",Thread.current)
+        }))
+        queue.async(group: queueGroup, execute: DispatchWorkItem(block: {
+            print("任务4-----",Thread.current)
+        }))
+        
+        queueGroup.notify(queue: DispatchQueue.main) {
+            print("任务组中所有的任务都完成了,可以执行下步操作-----")
+        }
+        
+    }
+    
+    func group2() -> Void {
+        let queueGroup = DispatchGroup()
+        
+        let queue = DispatchQueue.global()
+        
+        queueGroup.enter()
+        queue.async {
+            print("任务1-----",Thread.current)
+            queueGroup.leave()
+        }
+        
+        queueGroup.enter()
+        queue.async {
+            print("任务2-----",Thread.current)
+            queueGroup.leave()
+        }
+        
+        queueGroup.notify(queue: DispatchQueue.main) {
+            print("任务组中所有的任务都完成了,可以执行下步操作-----")
+        }
+        
+    }
+    
+    func group3() -> Void {
+        let queueGroup = DispatchGroup()
+        
+        let queue = DispatchQueue.global()
+        
+        queueGroup.enter()
+        queue.async {
+            print("任务1-----",Thread.current)
+            queueGroup.leave()
+        }
+        
+        queueGroup.enter()
+        queue.async {
+            print("任务2-----",Thread.current)
+            queueGroup.leave()
+        }
+        
+        queueGroup.wait()
+        
+        print("任务组中所有的任务都完成了,可以执行下步操作-----")
+        
+        queueGroup.wait(timeout: DispatchTime.now() + 2)
+        
+    }
+}
+
+extension ViewController {
+    func dispatchTimer() -> Void {
+        //GCD定时器
+        timer = DispatchSource.makeTimerSource()
+        /**
+         @param : deadline  延迟时间（多久时间以后开始执行）
+         @param : repeating 重复执行时间 DispatchTimeInterval类型时间
+         @param ：leeway 误差时间 0： 表示没有误差
+         */
+        timer?.schedule(deadline: DispatchTime.now(), repeating: DispatchTimeInterval.seconds(Int(2)), leeway: DispatchTimeInterval.microseconds(0))
+        //没有设置重复时间的默认是执行一次
+        //timer?.schedule(deadline: DispatchTime.now())
+        timer?.setEventHandler {
+            print("定时器处理器执行block=====",Thread.current)
+            
+        }
+        timer?.resume()
+        
+    }
+    
+    func dispatchTimer2() -> Void {
+        //GCD定时器
+        timer = DispatchSource.makeTimerSource(flags: [], queue: DispatchQueue.main)
+        
+        timer?.schedule(deadline: DispatchTime.now(), repeating: DispatchTimeInterval.seconds(Int(2)), leeway: DispatchTimeInterval.microseconds(0))
+        timer?.setEventHandler {
+            print("定时器处理器执行block=====",Thread.current)
+            
+        }
+        timer?.resume()
+        
+    }
+    
 }
